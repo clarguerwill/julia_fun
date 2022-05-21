@@ -1,0 +1,89 @@
+using Images, ImageView, LinearAlgebra
+
+#variables:
+camera = [0,0,0]    #[x,y,z]
+
+viewport = [1,2,1]  #[height, width, depth]
+
+canvas = fill!(rand(RGB, 1000, 2000), RGB{Float64}(0.0,0.0,0.0)) #set background to black
+
+spheres = [ (1, [0,0,5], RGB{Float64}(1.0,0.0,0.0)), (1.5, [2,2,5], RGB{Float64}(0.0,0.0,1.0)), (0.5, [-2,-1,5], RGB{Float64}(0.0,1.0,0.0)) ]
+
+#sphere = (radius, [x,y,z], RGB{Float64}(1.0,1.0,1.0))
+
+#functions:
+function putpixel!(array, x, y, color)
+    x = ceil(Int, width(array)/2 + x)
+    y = ceil(Int, height(array)/2 - y)
+    array[y,x] = color
+    return nothing
+end
+
+function canv_to_view(x,y)
+    hold = [x/width(canvas) * viewport[2], y/height(canvas) * viewport[1], viewport[3]]
+    hold = hold - camera
+    return hold
+end
+
+function ray_sphere_intersect(camera, direction, sphere)
+    radius = sphere[1]
+    cent_cam = camera - sphere[2]
+
+    a = dot(direction, direction)
+    b = 2 * dot(cent_cam, direction)
+    c = dot(cent_cam, cent_cam) - radius^2
+
+    discriminant = b^2 - 4*a*c
+
+    if discriminant < 0
+        return 10^5, 10^5
+    end
+
+    t1 = (-b + sqrt(discriminant)) / (2*a)
+    t2 = (-b - sqrt(discriminant)) / (2*a)
+
+    #println( "t1 = ", t1)
+    #println( "t2 = ", t2)
+
+    return t1, t2
+end
+
+function trace_ray(camera, direction, tmin, tmax)
+    closest_t = tmax
+    closest_sphere = nothing
+
+    for sphere in spheres
+        t1, t2 = ray_sphere_intersect(camera, direction, sphere)
+
+        if tmin < t1 && t1 < closest_t
+            closest_t = t1
+            closest_sphere = sphere
+        end
+
+        if tmin < t2 && t2 < closest_t
+            closest_t = t2
+            closest_sphere = sphere
+        end
+    end
+
+    if closest_sphere == nothing
+        return RGB{Float64}(1.0,1.0,1.0)
+    end
+
+    #println("color = ", closest_sphere)
+
+    return closest_sphere[3]
+end
+
+
+#code
+for x in -(width(canvas)/2 - 1):(width(canvas)/2)
+    for y in -(height(canvas)/2):(height(canvas)/2 - 1)
+        direction = canv_to_view(x,y)
+        color = trace_ray(camera, direction, 1, 10^5)
+        putpixel!(canvas, x, y, color)
+    end
+end
+
+imshow(canvas)
+readline()
